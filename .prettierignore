@@ -1,0 +1,9 @@
+node_modules
+.nuxt
+.output
+dist
+.test-dist
+coverage
+package-lock.json
+*.tsbuildinfo
+frontend/.agents/skills/ui-ux-pro-max/
