@@ -1,0 +1,7 @@
+CREATE TABLE "Workspace" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "locale" TEXT NOT NULL DEFAULT 'fa',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);

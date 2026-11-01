@@ -12,15 +12,21 @@ From the repository root:
 npm run dev:frontend
 ```
 
-The app serves at <http://localhost:3000>. The main page is an interactive Persian RTL learning-dashboard demo with a dark green palette and locally hosted Vazirmatn.
+The app serves at <http://localhost:3000>. Start the backend too (`npm run dev` from the root) to read roadmaps and save work.
 
-## Main-page demo
+## Learning classroom
 
-The demo includes two sample courses (TypeScript and software testing), course selection, lesson previews with LTR code examples, a clickable roadmap, reversible lesson completion, calculated progress, and a temporary note. All learning data is illustrative and all edits stay in memory; refreshing the page resets them. The learning companion's suggestion is sample text, not an AI response.
+The main page uses the real [learning Markdown](../learning/README.md), including all 15 React phases. The UI has six tracks, distinguishes the authoritative plan from proposed paths and missing plans, and shows actual saved progress.
 
-The backend connection check remains available under **وضعیت سرویس** in the footer. It is the only live backend integration on the page. Course navigation, completion, and notes work without the API running.
+The classroom combines a topic roadmap, a streaming Codex tutor chat, and tabs for practice, mastery checks, and sources. Eight session stages follow the supplied teaching flow. Code attempts are LTR; prose and navigation are Persian RTL. Vazirmatn, visible keyboard focus, keyboard-operable tabs, reduced-motion support, and responsive layouts support longer study sessions.
 
-The design uses the installed UI UX Pro Max skill's developer-workspace direction and web accessibility guidance, adapted to Persian RTL and the existing technology choices. No component library, external image service, or frontend runtime dependency was added.
+Notes and attempts save through the backend to `learning/.local/workspace.json`; they survive reloads. Use **ذخیرهٔ تمرین و یادداشت** before leaving the page. Drafts also save when navigating between topics or sending a message. Chat replies receive the saved attempt and notes. The practice editor stores text and does not execute code.
+
+Topic completion requires all five mastery checks and your explicit confirmation. No automatic advancement occurs. Topic-specific rooms can be resumed from **جلسه‌های ذخیره‌شده**. Only the last-room ID is stored in browser localStorage; learning records live on the backend.
+
+Chat uses the local Codex app-server and its managed ChatGPT login. Use the classroom connection controls or `codex login` on the backend machine; see the [root setup guide](../README.md). Replies stream over a POST fetch response and can be stopped. No model credentials belong in this application.
+
+The design follows the installed UI UX Pro Max skill, adapted to the real roadmap workflow, Nuxt/Vue, Persian RTL, and the existing plain CSS. No component library or frontend runtime dependency was added for this classroom.
 
 ## Configuration
 
@@ -35,14 +41,15 @@ Public runtime configuration is visible to the browser. Keep secrets out of `NUX
 ## Structure
 
 - `app/app.vue`: application entry point and route announcements.
-- `app/pages/index.vue`: interactive learning-dashboard demo.
-- `app/data/demo-courses.ts`: typed sample courses, lessons, and code examples.
+- `app/pages/index.vue`: roadmap, session stages, chat, practice, mastery, and sources.
+- `app/data/learning.ts`: API types, stage labels/prompts, and mastery criteria.
+- `app/stores/learning.ts`: Pinia workspace state, file API integration, draft saving, and streamed chat.
+- `app/components/LearningMarkdown.vue`: safe text/code display without raw HTML rendering.
 - `app/components/AppIcon.vue`: shared decorative SVG icons.
-- `app/stores/backend-health.ts`: Pinia setup store for connection state and a real health request.
-- `app/assets/css/main.css`: global styles with logical properties for RTL layouts.
+- `app/assets/css/main.css`: classroom styles, RTL logical properties, responsive and accessibility behavior.
 - `nuxt.config.ts`: modules, Persian document metadata, strict TypeScript, and public API configuration.
 
-The document has `lang="fa"` and `dir="rtl"`. Future code snippets and technical input fields should explicitly use LTR direction where appropriate. There is no learning-data store or persistence yet.
+The frontend reads `GET /api/learning/workspace`; mutations and chat use the same learning API. The complete contract is documented in [the backend guide](../backend/README.md). This is a local single-user application; the backend restricts learning routes to loopback access and the configured frontend origin.
 
 ## Typography
 

@@ -20,6 +20,13 @@ const paths: Record<string, string[]> = {
   clock: ['M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z', 'M12 7v5l3 2'],
   server: ['M4 4h16v6H4zM4 14h16v6H4z', 'M7 7h.01M7 17h.01M11 7h6M11 17h6'],
   leaf: ['M20 3C8 2 3 7 5 14s14 6 15-11Z', 'M4 21c0-7 5-10 10-13'],
+  refresh: ['M20 7a9 9 0 1 0 1 8', 'M20 3v5h-5'],
+  plus: ['M12 5v14M5 12h14'],
+  chat: ['M4 4h16v12H9l-5 4z'],
+  stop: ['M6 6h12v12H6z'],
+  circle: ['M19 12a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z'],
+  info: ['M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z', 'M12 11v6M12 7h.01'],
+  external: ['M14 3h7v7M21 3 11 13M10 4H4v16h16v-6'],
 }
 </script>
 

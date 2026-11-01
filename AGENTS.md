@@ -6,7 +6,7 @@ This is an npm-workspaces repository with a Nuxt frontend in `frontend/` and a N
 
 For frontend UI/UX tasks, also read the installed [UI UX Pro Max skill](frontend/.agents/skills/ui-ux-pro-max/SKILL.md); it is scoped to the frontend directory.
 
-The product UI is Persian and right-to-left. Preserve the learner's work and history when persistence is introduced. Do not present planned product features as implemented behavior.
+The product UI is Persian and right-to-left. Preserve the learner's work and history. Roadmaps are Markdown; sessions, progress, practice and notes are local JSON under `learning/.local/`. Read `learning/README.md` for source authority and storage. The product tutor uses Codex app-server; keep credentials managed by Codex and require explicit learner confirmation for completion. Do not present planned product features as implemented behavior.
 
 Use the root lockfile and workspace commands. Validate the applications affected by a change and report what was checked and any limitations. Keep credentials and local environment files out of Git.
 

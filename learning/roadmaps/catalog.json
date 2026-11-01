@@ -1,0 +1,56 @@
+[
+  {
+    "id": "react",
+    "title": "React و Next.js",
+    "cadence": "مسیر اصلی",
+    "description": "برنامهٔ دقیق ارائه‌شده؛ ۱۵ فاز و پروژه در checkpointها.",
+    "symbol": "R",
+    "file": "react.md",
+    "authority": "authoritative"
+  },
+  {
+    "id": "typescript",
+    "title": "TypeScript",
+    "cadence": "مسیر اصلی",
+    "description": "در انتظار برنامهٔ واقعی مسیر فعلی.",
+    "symbol": "TS",
+    "file": "typescript.md",
+    "authority": "awaiting"
+  },
+  {
+    "id": "testing",
+    "title": "Testing",
+    "cadence": "مسیر اصلی",
+    "description": "در انتظار برنامهٔ مستقل تست؛ تست React در فاز ۱۱ آمده است.",
+    "symbol": "T",
+    "file": "testing.md",
+    "authority": "awaiting"
+  },
+  {
+    "id": "javascript-browser",
+    "title": "JavaScript و Browser",
+    "cadence": "هفته‌ای یک جلسه",
+    "description": "پایهٔ قضاوت مهندسی، debugging و درک مرورگر.",
+    "symbol": "JS",
+    "file": "javascript-browser.md",
+    "authority": "proposed"
+  },
+  {
+    "id": "performance",
+    "title": "Frontend Performance",
+    "cadence": "بعد از پایهٔ مرورگر",
+    "description": "اندازه‌گیری، فرضیه و بهبود قابل مشاهده.",
+    "symbol": "P",
+    "file": "performance.md",
+    "authority": "proposed"
+  },
+  {
+    "id": "frontend-system-design",
+    "title": "Frontend System Design",
+    "cadence": "هر ۷ تا ۱۰ روز",
+    "description": "مطالعهٔ موردی، تصمیم معماری و trade-off.",
+    "symbol": "SD",
+    "file": "frontend-system-design.md",
+    "authority": "proposed"
+  }
+]

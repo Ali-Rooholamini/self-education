@@ -1,0 +1,19 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// A small persistence foundation. Learning-domain models will be designed later.
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  locale    String   @default("fa")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

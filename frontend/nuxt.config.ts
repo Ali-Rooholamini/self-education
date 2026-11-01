@@ -1,6 +1,11 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-01',
   devtools: { enabled: true },
+  vite: {
+    optimizeDeps: {
+      include: ['@vue/devtools-core'],
+    },
+  },
   modules: ['@pinia/nuxt', '@nuxt/eslint'],
   css: ['~/assets/css/main.css'],
   app: {

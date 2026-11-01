@@ -14,3 +14,14 @@ coverage/
 .vscode/
 __pycache__/
 *.pyc
+backend/data/
+backend/src/generated/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+learning/.local/

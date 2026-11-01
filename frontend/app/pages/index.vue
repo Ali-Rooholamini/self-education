@@ -1,419 +1,708 @@
 <script setup lang="ts">
-import { demoCourses, type DemoCourse } from '~/data/demo-courses'
+import { masteryChecks, sessionStages } from '~/data/learning'
 
-const health = useBackendHealthStore()
-const activeSection = ref('overview')
-const navigation = [
-  { id: 'overview', label: 'نمای کلی', icon: 'grid' },
-  { id: 'courses', label: 'دوره‌های من', icon: 'book' },
-  { id: 'roadmap', label: 'نقشهٔ یادگیری', icon: 'route' },
-  { id: 'notes', label: 'یادداشت‌ها', icon: 'note' },
-]
-const selectedCourseId = ref('typescript')
-const selectedLessonId = ref('ts-unions')
-const completedLessonIds = ref(['ts-types'])
-const note = ref('')
-const selectedCourse = computed(() =>
-  demoCourses.find((course) => course.id === selectedCourseId.value)!,
-)
-const selectedLesson = computed(() =>
-  selectedCourse.value.lessons.find(
-    (lesson) => lesson.id === selectedLessonId.value,
-  )!,
-)
-const isLessonComplete = computed(() =>
-  completedLessonIds.value.includes(selectedLesson.value.id),
-)
-const totalLessons = demoCourses.reduce(
-  (total, course) => total + course.lessons.length,
-  0,
-)
-const totalProgress = computed(() =>
-  Math.round((completedLessonIds.value.length / totalLessons) * 100),
-)
-const faNumber = (value: number) => new Intl.NumberFormat('fa-IR').format(value)
-
-function courseProgress(course: DemoCourse) {
-  return Math.round(
-    (course.lessons.filter((lesson) =>
-      completedLessonIds.value.includes(lesson.id),
-    ).length /
-      course.lessons.length) *
-      100,
-  )
-}
-
-function selectCourse(course: DemoCourse) {
-  selectedCourseId.value = course.id
-  selectedLessonId.value = (course.lessons.find(
-    (lesson) => !completedLessonIds.value.includes(lesson.id),
-  ) ?? course.lessons[0])!.id
-}
-
-function toggleLesson() {
-  const id = selectedLesson.value.id
-  completedLessonIds.value = isLessonComplete.value
-    ? completedLessonIds.value.filter((lessonId) => lessonId !== id)
-    : [...completedLessonIds.value, id]
-}
-
-const connectionLabel = computed(
+const learning = useLearningStore()
+const runtimeConfig = useRuntimeConfig()
+const activePanel = ref('practice')
+const message = ref('')
+const chatLog = ref<HTMLElement | null>(null)
+const followChat = ref(true)
+const fa = (value: number) => new Intl.NumberFormat('fa-IR').format(value)
+const authority = computed(
   () =>
     ({
-      idle: 'ارتباط هنوز بررسی نشده است',
-      checking: 'در حال بررسی ارتباط…',
-      online: 'ارتباط با سرور برقرار است',
-      offline: 'سرور در دسترس نیست؛ دوباره تلاش کن',
-    })[health.status],
+      authoritative: 'برنامهٔ اصلی تو',
+      proposed: 'مسیر پیشنهادی',
+      awaiting: 'در انتظار برنامه',
+    })[learning.currentTrack?.authority ?? 'awaiting'],
 )
+const topicTitle = computed(
+  () =>
+    learning.currentTopic?.title ??
+    learning.room?.topicTitle ??
+    'گفت‌وگو دربارهٔ مسیر',
+)
+const progressPercent = computed(() =>
+  learning.topics.length
+    ? Math.round((learning.completedCount / learning.topics.length) * 100)
+    : 0,
+)
+const sourceUrl = computed(
+  () =>
+    `${runtimeConfig.public.apiBase.replace(/\/$/, '')}/learning/roadmaps/${learning.selectedTrackId}/source`,
+)
+
+onMounted(() => learning.initialize())
+watch(
+  () => [
+    learning.streamedReply,
+    learning.room?.messages.length,
+    learning.room?.id,
+  ],
+  async () => {
+    await nextTick()
+    if (followChat.value && chatLog.value)
+      chatLog.value.scrollTop = chatLog.value.scrollHeight
+  },
+)
+function trackScroll() {
+  if (chatLog.value)
+    followChat.value =
+      chatLog.value.scrollHeight -
+        chatLog.value.scrollTop -
+        chatLog.value.clientHeight <
+      100
+}
+async function send(text = message.value) {
+  if (!text.trim()) return
+  const original = message.value
+  message.value = ''
+  followChat.value = true
+  if (!(await learning.send(text))) message.value = original
+}
+async function saveDraft() {
+  try {
+    await learning.ensureSession()
+    await learning.saveDraft(true)
+  } catch {
+    learning.error = 'ذخیره انجام نشد؛ متن در صفحه حفظ شده است. دوباره تلاش کن.'
+  }
+}
+async function newSession() {
+  try {
+    await learning.createSession()
+    followChat.value = true
+  } catch {
+    learning.error = 'جلسهٔ تازه ایجاد نشد. اتصال به backend را بررسی کن.'
+  }
+}
+
+function toolTabKeydown(event: KeyboardEvent) {
+  const tabs = ['practice', 'mastery', 'sources']
+  let index = tabs.indexOf(activePanel.value)
+  if (event.key === 'ArrowLeft') index = (index + 1) % tabs.length
+  else if (event.key === 'ArrowRight')
+    index = (index + tabs.length - 1) % tabs.length
+  else if (event.key === 'Home') index = 0
+  else if (event.key === 'End') index = tabs.length - 1
+  else return
+  event.preventDefault()
+  activePanel.value = tabs[index]!
+  const parent = event.currentTarget as HTMLElement
+  parent.querySelectorAll<HTMLButtonElement>('[role="tab"]')[index]?.focus()
+}
 </script>
 
 <template>
-  <div class="learning-app">
-    <a class="skip-link" href="#main-content">رفتن به محتوای اصلی</a>
-    <aside class="sidebar" aria-label="ناوبری اصلی">
-      <a class="brand" href="#overview" aria-label="یادگیر، نمای کلی">
-        <span class="brand-mark"><AppIcon name="book" /></span>
-        <span
-          ><strong>یادگیر<span class="brand-dot">.</span></strong
-          ><small>فضای شخصی یادگیری</small></span
+  <div class="study-shell">
+    <a class="skip-link" href="#learning-room">رفتن به اتاق یادگیری</a>
+    <aside class="study-sidebar" aria-label="مسیرهای یادگیری">
+      <a href="#learning-room" class="study-brand"
+        ><span class="brand-mark"><AppIcon name="book" /></span
+        ><span
+          ><strong>یادگیر<span>.</span></strong
+          ><small>جایی برای فهمیدن، نه فقط خواندن</small></span
+        ></a
+      >
+      <p class="sidebar-label">مسیرهای تو</p>
+      <nav class="track-navigation">
+        <button
+          v-for="track in learning.roadmaps"
+          :key="track.id"
+          type="button"
+          class="track-link"
+          :class="{ selected: learning.selectedTrackId === track.id }"
+          :aria-pressed="learning.selectedTrackId === track.id"
+          :disabled="learning.busy"
+          @click="learning.selectTrack(track.id)"
         >
-      </a>
-      <p class="nav-caption">میز کار تو</p>
-      <nav class="main-nav">
-        <a
-          v-for="item in navigation"
-          :key="item.id"
-          class="nav-link"
-          :class="{ 'nav-link-current': activeSection === item.id }"
-          :href="`#${item.id}`"
-          :aria-current="activeSection === item.id ? 'location' : undefined"
-          @click="activeSection = item.id"
-        >
-          <AppIcon :name="item.icon" />{{ item.label }}
-          <span v-if="item.id === 'courses'" class="nav-count">۲</span>
-        </a>
-      </nav>
-      <div class="sidebar-bottom">
-        <div class="growth-note">
-          <AppIcon name="leaf" /><strong>هر قدم، یک پیشرفت.</strong>
-          <p>قرار نیست همه‌چیز را یک‌باره یاد بگیری؛ فقط قدم بعدی را بردار.</p>
-        </div>
-        <div class="profile">
-          <span class="avatar">من</span
+          <span class="track-symbol" dir="ltr">{{ track.symbol }}</span
           ><span
-            ><strong>مسیر یادگیری من</strong
-            ><small>با کنجکاوی ادامه بده</small></span
-          >
-        </div>
+            ><strong dir="auto">{{ track.title }}</strong
+            ><small>{{ track.cadence }}</small></span
+          ><AppIcon
+            v-if="learning.selectedTrackId === track.id"
+            name="chevron"
+          />
+        </button>
+      </nav>
+      <div class="sidebar-schedule">
+        <AppIcon name="clock" /><strong>ریتم یادگیری React</strong>
+        <p>یکشنبه و سه‌شنبه<br />۴۵ تا ۷۵ دقیقه؛ آخر هفته اختیاری.</p>
+        <span>با سرعت فهمیدن خودت جلو برو.</span>
+      </div>
+      <div class="sidebar-foot">
+        <AppIcon name="note" /><span
+          >نقشه‌ها از فایل Markdown<br />جلسه‌ها در فایل محلی</span
+        >
       </div>
     </aside>
 
-    <main id="main-content" class="main-content" tabindex="-1">
-      <header id="overview" class="topbar">
+    <main class="study-main">
+      <header class="study-topbar">
         <div class="breadcrumb">
-          میز کار <AppIcon name="chevron" /><span>نمای کلی</span>
+          <span>فضای یادگیری</span><AppIcon name="chevron" /><strong
+            >اتاق مطالعه</strong
+          >
         </div>
-        <span class="demo-label"><span />نسخهٔ نمایشی</span>
+        <div class="connection-controls">
+          <span
+            class="connection-state"
+            :class="{ connected: learning.connection?.connected }"
+            ><span />{{
+              learning.checkingConnection
+                ? 'در حال بررسی…'
+                : learning.connection?.connected
+                  ? 'حساب Codex متصل'
+                  : 'اتصال Codex'
+            }}</span
+          ><button
+            type="button"
+            class="quiet-button"
+            :disabled="learning.checkingConnection"
+            @click="learning.checkConnection()"
+          >
+            <AppIcon name="refresh" /><span class="sr-only">بررسی اتصال</span>
+          </button>
+        </div>
       </header>
-      <div class="page-content">
-        <section class="welcome" aria-labelledby="welcome-title">
-          <div class="welcome-copy">
-            <p class="eyebrow">
-              <span class="small-line" />یک قدم کوچک، هر روز
-            </p>
-            <h1 id="welcome-title">
-              کنجکاوی‌ات را دنبال کن.<span>مسیرت همین‌جاست.</span>
-            </h1>
-            <p class="welcome-description">
-              درس‌ها، تمرین‌ها و فکرهای تازه‌ات، همه در یک جا. امروز هم از همان
-              جایی که بودی، ادامه بده.
-            </p>
-            <a class="button button-primary" href="#lesson"
-              >ادامهٔ یادگیری<AppIcon name="arrow"
-            /></a>
-          </div>
-          <div class="journey-art" aria-hidden="true">
-            <div class="art-orbit art-orbit-one" />
-            <div class="art-orbit art-orbit-two" />
-            <span class="art-point point-one" /><span
-              class="art-point point-two"
-            />
-            <div class="floating-code">
-              <AppIcon name="code" /><span dir="ltr"
-                >learn. practice. grow.</span
-              >
+
+      <div v-if="learning.loading" class="workspace-loading" role="status">
+        <AppIcon name="book" />
+        <h1>مسیرت را آماده می‌کنیم…</h1>
+        <p>در حال خواندن نقشه‌های راه از فایل‌های پروژه.</p>
+      </div>
+      <div v-else-if="!learning.currentTrack" class="workspace-loading">
+        <h1>فضای یادگیری در دسترس نیست</h1>
+        <p>{{ learning.error }}</p>
+        <button
+          class="button button-primary"
+          type="button"
+          @click="learning.initialize()"
+        >
+          تلاش دوباره
+        </button>
+      </div>
+      <template v-else>
+        <section class="room-heading" aria-labelledby="room-title">
+          <div>
+            <div class="heading-eyebrow">
+              <span class="accent-line" />{{ authority
+              }}<span class="heading-divider">/</span
+              ><span dir="auto">{{ learning.currentTrack.title }}</span>
             </div>
-            <div class="art-book"><AppIcon name="book" /></div>
-            <div class="art-step">
-              <span class="art-check"><AppIcon name="check" /></span>
-              <div>
-                <strong>یک قدم نزدیک‌تر</strong
-                ><span>به چیزی که می‌خواهی یاد بگیری</span>
-              </div>
-            </div>
+            <h1 id="room-title" dir="auto">{{ topicTitle }}</h1>
+            <p>یک مفهوم را بفهم. با کد لمسش کن. بعد، قدم بعدی را بردار.</p>
           </div>
+          <button
+            type="button"
+            class="button button-secondary"
+            :disabled="learning.busy || learning.saving"
+            @click="newSession()"
+          >
+            <AppIcon name="plus" />جلسهٔ تازه
+          </button>
         </section>
-        <div class="demo-notice">
-          <AppIcon name="sparkle" />
-          <p>
-            این یک پیش‌نمایش تعاملی است. دوره‌ها و پیشرفت، نمونه‌اند و تغییرات
-            با تازه‌سازی صفحه پاک می‌شوند.
-          </p>
+
+        <div class="session-flow" aria-label="مراحل جلسه">
+          <button
+            v-for="(stage, index) in sessionStages"
+            :key="stage.id"
+            type="button"
+            :class="{ active: learning.currentStage.id === stage.id }"
+            :aria-pressed="learning.currentStage.id === stage.id"
+            :disabled="learning.busy"
+            @click="learning.changeStage(stage.id)"
+          >
+            <span>{{ fa(index + 1) }}</span
+            >{{ stage.label }}
+          </button>
         </div>
 
-        <section class="stats" aria-label="خلاصهٔ پیشرفت نمونه">
-          <div class="stat">
-            <span class="stat-icon"><AppIcon name="book" /></span>
-            <div>
-              <strong>۲ <span>دوره</span></strong>
-              <p>برای کشف کردن</p>
-            </div>
-          </div>
-          <div class="stat">
-            <span class="stat-icon"><AppIcon name="check" /></span>
-            <div>
-              <strong
-                >{{ faNumber(completedLessonIds.length) }}
-                <span>از {{ faNumber(totalLessons) }} قدم</span></strong
-              >
-              <p>در مسیر یادگیری</p>
-            </div>
-          </div>
-          <div class="stat">
-            <span class="stat-icon"><AppIcon name="route" /></span>
-            <div>
-              <strong
-                >{{ faNumber(totalProgress) }}<span>٪ پیشرفت</span></strong
-              >
-              <p>هر قدمت ارزشمند است</p>
-            </div>
-          </div>
-        </section>
-
-        <section
-          id="courses"
-          class="courses-section"
-          aria-labelledby="courses-title"
+        <div
+          v-if="learning.error"
+          class="feedback-banner error-banner"
+          role="alert"
         >
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">یادگیری، به سبک تو</p>
-              <h2 id="courses-title">مسیرهای یادگیری</h2>
-            </div>
-            <span class="section-meta">۲ مسیر نمونه</span>
-          </div>
-          <div class="course-grid">
-            <button
-              v-for="course in demoCourses"
-              :key="course.id"
-              type="button"
-              class="course-card"
-              :class="[
-                { 'course-selected': selectedCourseId === course.id },
-                `course-${course.theme}`,
-              ]"
-              :aria-pressed="selectedCourseId === course.id"
-              @click="selectCourse(course)"
-            >
-              <span class="course-top"
-                ><span class="course-symbol" dir="ltr">{{ course.symbol }}</span
-                ><span class="course-state"
-                  >{{
-                    selectedCourseId === course.id
-                      ? 'در حال مشاهده'
-                      : 'مشاهدهٔ مسیر'
-                  }}<AppIcon
-                    :name="
-                      selectedCourseId === course.id ? 'check' : 'chevron'
-                    " /></span
-              ></span>
-              <span class="course-title">{{ course.title }}</span
-              ><span class="course-description">{{ course.description }}</span>
-              <span class="course-progress-label"
-                ><span
-                  >{{
-                    faNumber(
-                      course.lessons.filter((lesson) =>
-                        completedLessonIds.includes(lesson.id),
-                      ).length,
-                    )
-                  }}
-                  از {{ faNumber(course.lessons.length) }} درس</span
-                ><span>{{ faNumber(courseProgress(course)) }}٪</span></span
-              >
-              <span class="progress-track"
-                ><span :style="{ inlineSize: `${courseProgress(course)}%` }"
-              /></span>
-            </button>
-          </div>
-        </section>
+          <AppIcon name="info" /><span>{{ learning.error }}</span
+          ><button
+            type="button"
+            class="quiet-button"
+            aria-label="بستن پیام خطا"
+            @click="learning.error = ''"
+          >
+            ×
+          </button>
+        </div>
+        <div
+          v-if="learning.notice"
+          class="feedback-banner success-banner"
+          role="status"
+        >
+          <AppIcon name="check" /><span>{{ learning.notice }}</span
+          ><button
+            type="button"
+            class="quiet-button"
+            aria-label="بستن پیام ذخیره"
+            @click="learning.notice = ''"
+          >
+            ×
+          </button>
+        </div>
+        <div v-if="learning.login?.verificationUrl" class="login-banner">
+          <p>
+            برای اتصال، کد
+            <strong dir="ltr">{{ learning.login.userCode }}</strong> را در صفحهٔ
+            رسمی ورود وارد کن.
+          </p>
+          <a
+            :href="learning.login.verificationUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="button button-primary"
+            >ادامهٔ ورود به ChatGPT<AppIcon name="external" /></a
+          ><button
+            class="button button-secondary"
+            type="button"
+            @click="learning.checkConnection()"
+          >
+            ورود انجام شد؛ بررسی اتصال
+          </button>
+        </div>
 
-        <div class="content-grid">
-          <div class="primary-column">
-            <section
-              id="lesson"
-              class="lesson-panel"
-              aria-labelledby="lesson-title"
-            >
-              <div class="lesson-heading">
-                <span class="eyebrow"><span class="status-dot" />قدم امروز</span
-                ><span class="duration"
-                  ><AppIcon name="clock" />{{
-                    faNumber(selectedLesson.minutes)
-                  }}
-                  دقیقه</span
-                >
+        <div class="workspace-columns">
+          <aside class="roadmap-pane" aria-labelledby="roadmap-heading">
+            <div class="pane-heading">
+              <h2 id="roadmap-heading"><AppIcon name="route" />نقشهٔ مسیر</h2>
+              <span>{{ fa(learning.currentTrack.phases.length) }} فاز</span>
+            </div>
+            <div class="roadmap-progress">
+              <div>
+                <strong
+                  >{{ fa(learning.completedCount) }} از
+                  {{ fa(learning.topics.length) }} موضوع</strong
+                ><span>{{ fa(progressPercent) }}٪</span>
               </div>
-              <p class="lesson-course">{{ selectedCourse.title }}</p>
-              <h2 id="lesson-title">{{ selectedLesson.title }}</h2>
-              <p class="lesson-description">{{ selectedLesson.description }}</p>
-              <div class="code-window">
-                <div class="code-toolbar">
-                  <span class="window-dots"><i /><i /><i /></span
-                  ><span dir="ltr">practice.ts</span><span>مثال آموزشی</span>
-                </div>
-                <pre
-                  dir="ltr"
-                  tabindex="0"
-                  aria-label="نمونه کد درس"
-                ><code>{{ selectedLesson.example }}</code></pre>
+              <div class="progress-track">
+                <span :style="{ inlineSize: `${progressPercent}%` }" />
               </div>
-              <div class="lesson-footer">
-                <span
-                  class="lesson-feedback"
-                  role="status"
-                  aria-live="polite"
-                  >{{
-                    isLessonComplete
-                      ? 'این قدم را در دمو کامل کردی.'
-                      : 'مثال را بخوان و با یک ورودی تازه امتحان کن.'
-                  }}</span
-                ><button
-                  class="button"
-                  :class="
-                    isLessonComplete ? 'button-secondary' : 'button-primary'
-                  "
-                  type="button"
-                  :aria-pressed="isLessonComplete"
-                  @click="toggleLesson"
-                >
-                  <AppIcon name="check" />{{
-                    isLessonComplete
-                      ? 'بازگرداندن به تمرین'
-                      : 'این قدم را یاد گرفتم'
-                  }}
-                </button>
-              </div>
-            </section>
-            <section
-              id="notes"
-              class="notes-panel"
-              aria-labelledby="notes-title"
-            >
-              <div class="section-heading">
-                <h2 id="notes-title"><AppIcon name="note" />یک فکر برای بعد</h2>
-                <span class="section-meta">یادداشت موقت</span>
-              </div>
-              <label class="sr-only" for="learning-note">یادداشت یادگیری</label>
-              <textarea
-                id="learning-note"
-                v-model="note"
-                rows="3"
-                maxlength="2000"
-                placeholder="امروز چه چیزی برایت روشن شد؟ با زبان خودت بنویس…"
-                aria-describedby="note-help"
-              />
-              <p id="note-help" class="note-help">
-                این یادداشت فقط تا وقتی صفحه باز است باقی می‌ماند.
+              <p>تکمیل فقط با تأیید تو ثبت می‌شود.</p>
+            </div>
+            <div class="roadmap-scroll">
+              <p v-if="!learning.topics.length" class="empty-roadmap">
+                برنامهٔ دقیق این مسیر هنوز ارائه نشده است. می‌توانی دربارهٔ مسیر
+                گفتگو کنی؛ سرفصل و پیشرفت ساختگی اضافه نمی‌کنیم.
               </p>
-            </section>
-          </div>
-          <div class="secondary-column">
-            <section
-              id="roadmap"
-              class="roadmap-panel"
-              aria-labelledby="roadmap-title"
-            >
-              <div class="section-heading">
-                <h2 id="roadmap-title">قدم‌های مسیر</h2>
-                <AppIcon name="route" />
-              </div>
-              <p class="section-description">{{ selectedCourse.title }}</p>
-              <ol class="roadmap-list">
-                <li
-                  v-for="(lesson, index) in selectedCourse.lessons"
-                  :key="lesson.id"
-                  :class="{
-                    'step-completed': completedLessonIds.includes(lesson.id),
-                    'step-current': selectedLessonId === lesson.id,
-                  }"
+              <details
+                v-for="(phase, phaseIndex) in learning.currentTrack.phases"
+                :key="phase.id"
+                class="phase-group"
+                :open="learning.currentPhase?.id === phase.id"
+              >
+                <summary>
+                  <span class="phase-number">{{ fa(phaseIndex + 1) }}</span
+                  ><span dir="auto">{{
+                    phase.title.replace(/^Phase\s+\d+\s*[—–-]\s*/i, '')
+                  }}</span
+                  ><AppIcon name="chevron" />
+                </summary>
+                <div class="phase-topics">
+                  <button
+                    v-for="topic in phase.topics"
+                    :key="topic.id"
+                    type="button"
+                    class="topic-button"
+                    :class="[
+                      { current: learning.selectedTopicId === topic.id },
+                      `topic-${learning.statusOf(topic)}`,
+                    ]"
+                    :aria-current="
+                      learning.selectedTopicId === topic.id ? 'step' : undefined
+                    "
+                    :disabled="learning.busy"
+                    @click="learning.selectTopic(topic.id)"
+                  >
+                    <AppIcon
+                      :name="
+                        learning.statusOf(topic) === 'completed'
+                          ? 'check'
+                          : learning.statusOf(topic) === 'in-progress'
+                            ? 'clock'
+                            : 'circle'
+                      "
+                    /><span dir="auto">{{ topic.title }}</span
+                    ><span class="sr-only">{{
+                      learning.statusOf(topic) === 'completed'
+                        ? 'تکمیل شده'
+                        : learning.statusOf(topic) === 'in-progress'
+                          ? 'در حال یادگیری'
+                          : 'شروع نشده'
+                    }}</span></button
+                  ><span v-if="phase.checkpoint" class="checkpoint-label"
+                    ><AppIcon name="code" />checkpoint یا تمرین یکپارچه در این
+                    فاز</span
+                  >
+                </div>
+              </details>
+            </div>
+            <details class="saved-sessions">
+              <summary>
+                جلسه‌های ذخیره‌شده
+                <span>{{ fa(learning.trackSessions.length) }}</span>
+              </summary>
+              <button
+                v-for="session in learning.trackSessions"
+                :key="session.id"
+                type="button"
+                :disabled="learning.busy"
+                :class="{ selected: learning.room?.id === session.id }"
+                @click="learning.openSession(session.id)"
+              >
+                <span dir="auto">{{ session.topicTitle }}</span
+                ><small
+                  >{{ fa(session.messageCount) }} پیام ·
+                  {{
+                    new Date(session.updatedAt).toLocaleDateString('fa-IR')
+                  }}</small
                 >
+              </button>
+              <p v-if="!learning.trackSessions.length">
+                اولین گفت‌وگوی این مسیر را بساز.
+              </p>
+            </details>
+          </aside>
+
+          <section
+            id="learning-room"
+            class="chat-pane"
+            aria-labelledby="chat-heading"
+            tabindex="-1"
+          >
+            <header class="chat-heading">
+              <div class="tutor-mark"><AppIcon name="sparkle" /></div>
+              <div>
+                <h2 id="chat-heading">همراه یادگیری</h2>
+                <p>
+                  {{ learning.currentStage.label }}<span> · </span
+                  >{{ learning.room ? 'جلسهٔ ذخیره‌شده' : 'آمادهٔ شروع' }}
+                </p>
+              </div>
+              <span class="chat-provider" dir="ltr">Codex</span>
+            </header>
+            <div
+              ref="chatLog"
+              class="chat-messages"
+              role="log"
+              aria-label="پیام‌های جلسه"
+              :aria-busy="learning.busy"
+              @scroll="trackScroll"
+            >
+              <div v-if="!learning.room?.messages.length" class="chat-welcome">
+                <span class="welcome-orbit"><AppIcon name="book" /></span>
+                <p class="eyebrow">از فهمیدن شروع کنیم</p>
+                <h3>این‌بار فقط یک موضوع.</h3>
+                <p>
+                  مربی، نقشهٔ راه و مرحلهٔ انتخابی تو را می‌خواند. تمرین می‌دهد،
+                  منتظر جوابت می‌ماند و با هم بازبینی می‌کنید.
+                </p>
+                <div class="starter-prompts">
                   <button
                     type="button"
-                    class="roadmap-step"
-                    :aria-current="
-                      selectedLessonId === lesson.id ? 'step' : undefined
-                    "
-                    @click="selectedLessonId = lesson.id"
+                    :disabled="learning.busy"
+                    @click="send(learning.currentStage.prompt)"
                   >
-                    <span class="step-marker"
-                      ><AppIcon
-                        v-if="completedLessonIds.includes(lesson.id)"
-                        name="check"
-                      /><span v-else>{{ faNumber(index + 1) }}</span></span
-                    ><span class="step-text"
-                      ><strong>{{ lesson.title }}</strong
-                      ><small>{{
-                        completedLessonIds.includes(lesson.id)
-                          ? 'تکمیل شده'
-                          : selectedLessonId === lesson.id
-                            ? 'در حال مشاهده'
-                            : `${faNumber(lesson.minutes)} دقیقه یادگیری`
-                      }}</small></span
-                    ><AppIcon
-                      v-if="selectedLessonId === lesson.id"
-                      class="step-arrow"
-                      name="chevron"
-                    />
+                    <AppIcon name="arrow" />{{ learning.currentStage.label }} را
+                    شروع کنیم</button
+                  ><button
+                    type="button"
+                    :disabled="learning.busy"
+                    @click="
+                      send(
+                        'قبل از شروع، یک سؤال کوتاه بپرس تا معلوم شود دربارهٔ این موضوع چه می‌دانم.',
+                      )
+                    "
+                  >
+                    <AppIcon name="chat" />اول فهم فعلی‌ام را بسنج
                   </button>
-                </li>
-              </ol>
-              <p class="roadmap-caption">
-                مسیرهای بزرگ، از قدم‌های کوچک ساخته می‌شوند.
-              </p>
-            </section>
-            <section class="companion-panel" aria-labelledby="companion-title">
-              <span class="companion-icon"><AppIcon name="sparkle" /></span>
-              <p class="eyebrow">یک تلنگر کوچک</p>
-              <h2 id="companion-title">فقط نخوان، کشف کن.</h2>
-              <p>{{ selectedCourse.hint }}</p>
-              <span class="sample-caption">پیشنهاد آموزشی نمونه</span>
-            </section>
-          </div>
-        </div>
-        <footer class="page-footer">
-          <p>با حوصله یاد بگیر. با تمرین، ماندگارش کن.</p>
-          <details class="service-details">
-            <summary><AppIcon name="server" />وضعیت سرویس</summary>
-            <div class="service-content">
-              <p role="status" aria-live="polite">{{ connectionLabel }}</p>
-              <button
-                type="button"
-                class="button button-secondary"
-                :disabled="health.status === 'checking'"
-                @click="health.check()"
+                </div>
+                <p
+                  v-if="!learning.connection?.connected"
+                  class="connection-hint"
+                >
+                  {{
+                    learning.connection?.message ??
+                    'اتصال حساب در حال بررسی است.'
+                  }}<button
+                    type="button"
+                    class="text-button"
+                    :disabled="learning.checkingConnection"
+                    @click="learning.connect()"
+                  >
+                    اتصال حساب ChatGPT
+                  </button>
+                </p>
+              </div>
+              <article
+                v-for="item in learning.room?.messages ?? []"
+                :key="item.id"
+                class="chat-message"
+                :class="[
+                  `message-${item.role}`,
+                  {
+                    'message-incomplete':
+                      item.status === 'failed' || item.status === 'interrupted',
+                  },
+                ]"
               >
-                {{
-                  health.status === 'checking'
-                    ? 'در حال بررسی…'
-                    : 'بررسی ارتباط با سرور'
-                }}
+                <div class="message-meta">
+                  <span>{{
+                    item.role === 'user' ? 'تو' : 'همراه یادگیری'
+                  }}</span
+                  ><span v-if="item.status === 'failed'">پاسخ کامل نشد</span
+                  ><span v-else-if="item.status === 'interrupted'"
+                    >متوقف شد</span
+                  ><time v-else :datetime="item.createdAt">{{
+                    new Date(item.createdAt).toLocaleTimeString('fa-IR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  }}</time>
+                </div>
+                <LearningMarkdown
+                  :text="
+                    item.status === 'pending' && learning.busy
+                      ? learning.streamedReply || 'در حال آماده‌کردن پاسخ…'
+                      : item.text ||
+                        (item.status === 'pending'
+                          ? 'این پاسخ با توقف برنامه ناتمام مانده؛ می‌توانی دوباره پیام بدهی.'
+                          : 'پاسخی ذخیره نشده است.')
+                  "
+                />
+              </article>
+            </div>
+            <div class="stage-action">
+              <AppIcon name="route" /><span
+                >مرحلهٔ فعلی:
+                <strong>{{ learning.currentStage.label }}</strong></span
+              ><button
+                class="text-button"
+                type="button"
+                :disabled="learning.busy"
+                @click="send(learning.currentStage.prompt)"
+              >
+                ادامهٔ این مرحله<AppIcon name="arrow" />
               </button>
             </div>
-          </details>
-        </footer>
-      </div>
+            <form class="chat-composer" @submit.prevent="send()">
+              <label class="sr-only" for="chat-message">پیام به مربی</label
+              ><textarea
+                id="chat-message"
+                v-model="message"
+                rows="2"
+                maxlength="12000"
+                :disabled="learning.busy"
+                placeholder="سؤالت را بپرس، پاسخ تمرینت را توضیح بده، یا بگو کدام قسمت هنوز روشن نیست…"
+              />
+              <div class="composer-footer">
+                <span>پاسخ‌ها از Codex می‌آیند؛ تکمیل درس با توست.</span
+                ><button
+                  v-if="learning.busy"
+                  type="button"
+                  class="button button-secondary"
+                  @click="learning.stop()"
+                >
+                  <AppIcon name="stop" />توقف پاسخ</button
+                ><button
+                  v-else
+                  type="submit"
+                  class="button button-primary"
+                  :disabled="!message.trim()"
+                >
+                  <AppIcon name="arrow" />ارسال
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="practice-pane" aria-label="تمرین، معیار تکمیل و منابع">
+            <div
+              class="work-tabs"
+              role="tablist"
+              aria-label="ابزارهای جلسه"
+              @keydown="toolTabKeydown"
+            >
+              <button
+                id="practice-tab"
+                type="button"
+                role="tab"
+                :aria-selected="activePanel === 'practice'"
+                :tabindex="activePanel === 'practice' ? 0 : -1"
+                aria-controls="practice-panel"
+                @click="activePanel = 'practice'"
+              >
+                تمرین</button
+              ><button
+                id="mastery-tab"
+                type="button"
+                role="tab"
+                :aria-selected="activePanel === 'mastery'"
+                :tabindex="activePanel === 'mastery' ? 0 : -1"
+                aria-controls="mastery-panel"
+                @click="activePanel = 'mastery'"
+              >
+                تثبیت</button
+              ><button
+                id="sources-tab"
+                type="button"
+                role="tab"
+                :aria-selected="activePanel === 'sources'"
+                :tabindex="activePanel === 'sources' ? 0 : -1"
+                aria-controls="sources-panel"
+                @click="activePanel = 'sources'"
+              >
+                منابع
+              </button>
+            </div>
+            <section
+              v-show="activePanel === 'practice'"
+              id="practice-panel"
+              class="practice-content"
+              role="tabpanel"
+              aria-labelledby="practice-tab"
+            >
+              <div class="tool-eyebrow">
+                <AppIcon name="code" />یادگیری با دست‌های خودت
+              </div>
+              <h2>اول تلاش تو، بعد بازبینی.</h2>
+              <p>
+                کد یا پاسخ تمرین را اینجا بنویس. با ارسال در مرحلهٔ بازبینی،
+                مربی همین نسخهٔ ذخیره‌شده را می‌بیند.
+              </p>
+              <label for="exercise-draft"
+                >پاسخ تمرین <span dir="ltr">code / notes</span></label
+              ><textarea
+                id="exercise-draft"
+                v-model="learning.draftExercise"
+                class="exercise-editor"
+                dir="ltr"
+                spellcheck="false"
+                rows="12"
+                maxlength="50000"
+                :disabled="learning.busy || learning.saving"
+                placeholder="// Your attempt starts here…"
+              /><label for="session-note">نکته‌ای برای جلسهٔ بعد</label
+              ><textarea
+                id="session-note"
+                v-model="learning.draftNotes"
+                rows="4"
+                maxlength="20000"
+                :disabled="learning.busy || learning.saving"
+                placeholder="چه چیزی را فهمیدی؟ چه سؤالی هنوز باز است؟"
+              /><button
+                type="button"
+                class="button button-secondary full-width"
+                :disabled="learning.busy || learning.saving"
+                @click="saveDraft()"
+              >
+                <AppIcon name="note" />{{
+                  learning.saving ? 'در حال ذخیره…' : 'ذخیرهٔ تمرین و یادداشت'
+                }}
+              </button>
+              <p class="tool-caption">
+                فایل محلی؛ بدون اجرای کد و بدون ذخیره در دیتابیس.
+              </p>
+            </section>
+            <section
+              v-show="activePanel === 'mastery'"
+              id="mastery-panel"
+              class="practice-content"
+              role="tabpanel"
+              aria-labelledby="mastery-tab"
+            >
+              <div class="tool-eyebrow">
+                <AppIcon name="check" />تمام شدن با فهمیدن فرق دارد
+              </div>
+              <h2>این موضوع جا افتاده؟</h2>
+              <p>
+                طبق قانون نقشهٔ React، هر پنج معیار را با تجربهٔ واقعی خودت
+                بررسی کن.
+              </p>
+              <label
+                v-for="check in masteryChecks"
+                :key="check.id"
+                class="mastery-check"
+                ><input
+                  v-model="learning.checks"
+                  type="checkbox"
+                  :value="check.id"
+                  :disabled="!learning.currentTopic || learning.busy"
+                  @change="learning.updateChecks()"
+                /><span>{{ check.label }}</span></label
+              ><button
+                type="button"
+                class="button button-primary full-width"
+                :disabled="!learning.canComplete || learning.busy"
+                @click="learning.complete()"
+              >
+                <AppIcon name="check" />تأیید من؛ ثبت تکمیل موضوع
+              </button>
+              <p class="tool-caption">
+                مربی هیچ موضوعی را به‌جای تو تکمیل نمی‌کند. checkpointهای پروژه
+                را هم در زمان مقرر انجام بده.
+              </p>
+            </section>
+            <section
+              v-show="activePanel === 'sources'"
+              id="sources-panel"
+              class="practice-content"
+              role="tabpanel"
+              aria-labelledby="sources-tab"
+            >
+              <div class="tool-eyebrow">
+                <AppIcon name="book" />منبع همین گفت‌وگو
+              </div>
+              <h2 dir="auto">{{ learning.currentTrack.title }}</h2>
+              <p>{{ learning.currentTrack.description }}</p>
+              <dl class="source-facts">
+                <div>
+                  <dt>نوع برنامه</dt>
+                  <dd>{{ authority }}</dd>
+                </div>
+                <div>
+                  <dt>ریتم پیشنهادی</dt>
+                  <dd>{{ learning.currentTrack.cadence }}</dd>
+                </div>
+                <div>
+                  <dt>ذخیره‌سازی</dt>
+                  <dd>فایل Markdown در پروژه</dd>
+                </div>
+              </dl>
+              <a
+                :href="sourceUrl"
+                class="source-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                ><span dir="ltr">{{ learning.currentTrack.file }}</span
+                ><AppIcon name="external"
+              /></a>
+              <details class="source-preview">
+                <summary>متن بخش فعلی</summary>
+                <pre dir="auto">{{
+                  learning.currentPhase?.content ??
+                  learning.currentTrack.markdown
+                }}</pre>
+              </details>
+              <div class="book-notice">
+                <AppIcon name="book" /><strong>کتاب، ابزار مسیر است.</strong>
+                <p>
+                  پس از ارائهٔ PDF، فصل‌ها را به Core، Optional و Later وصل
+                  می‌کنیم. هنوز کتابی وارد نشده است.
+                </p>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </template>
     </main>
   </div>
 </template>

@@ -1,138 +1,112 @@
 # Self Education | مسیر یادگیری من
 
-A personal learning workspace with a Persian, right-to-left interface and an AI agent behind it. The goal is to turn ongoing study into a continuous, documented journey: understand the whole roadmap, keep every learning step and exercise, and resume with the context of what has already happened.
+A personal learning workspace with a Persian, right-to-left interface. It brings roadmaps, a tutor chat, practice attempts, notes, and progress together so each session can continue from saved context. The long-term goal is an artifacts-like home for ongoing study and stronger frontend engineering judgment.
 
-This repository matters as a long-term home for that learning history. It starts with two applications: a Nuxt frontend and a NestJS backend.
+The project owner's learning currently includes React, TypeScript, and Testing, alongside Vue/Nuxt experience. JavaScript/Browser Fundamentals, Performance, and Frontend System Design are complementary paths. The supplied learning discussion is recorded in [the workflow brief](learning/sources/learning-workflow-brief.fa.md); previous ChatGPT website conversations have not been imported.
 
-## Why this project exists
+## What works now
 
-Learning currently happens through conversations on the ChatGPT website, including topics such as TypeScript and software testing. Those conversations are useful, but the intended next step is an artifacts-like workspace: a dedicated interface where learning materials, practice, progress, and the agent's guidance belong to the same project.
+- A responsive Persian RTL classroom using Nuxt 4, Vue 3, TypeScript, Pinia, plain CSS, and locally hosted Vazirmatn.
+- Real roadmaps read from Markdown on the NestJS backend. [The original React plan](learning/roadmaps/react.md) is preserved byte-for-byte, including its 15 phases and project checkpoints.
+- Topic selection, saved chat rooms, practice drafts, notes, session stages, and progress that survive refreshes and backend restarts.
+- A real streaming tutor chat through the local Codex CLI's app-server, using its managed ChatGPT login. The tutor receives the selected roadmap, topic, stage, saved attempt, notes, and recent transcript.
+- Five mastery checks plus explicit learner confirmation before a topic is completed. Chatting does not complete a topic or advance to the next one automatically.
+- A separate SQLite/Prisma foundation with repeatable migration commands. **Roadmaps and current learning records do not use this database.**
 
-The agent should eventually work with the documentation and materials for a chosen course, understand its full learning roadmap, and keep the project current as study continues. Each session should build on saved context instead of starting again from scratch.
+The learning flow follows the supplied plan: concept → mental model → comparison with Vue → real example → exercise → review → interview scenario → confirmation. React follows one evolving admin-dashboard project, with larger exercises at the roadmap's checkpoints. Its suggested rhythm is Sunday and Tuesday, 45–75 minutes, with optional weekend practice.
 
-This description comes from the project owner's initial brief. Previous ChatGPT conversations have not been imported or reviewed; their details can be added when they are made available.
+## Learning sources and storage
 
-## Intended learning experience
+| Location                                                                                 | Purpose                                                                      |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `learning/roadmaps/react.md`                                                             | Authoritative React plan supplied by the owner                               |
+| `learning/sources/learning-workflow-brief.fa.md`                                         | Structured record of the supplied discussion, clearly labeled as a synthesis |
+| `learning/roadmaps/javascript-browser.md`, `performance.md`, `frontend-system-design.md` | Proposed complementary plans drawn from that discussion                      |
+| `learning/roadmaps/typescript.md`, `testing.md`                                          | Placeholders awaiting the actual plans; no invented syllabus or progress     |
+| `learning/roadmaps/catalog.json`                                                         | Track metadata and source authority                                          |
+| `learning/tutor-instructions.md`                                                         | Tutor behavior and step-by-step teaching contract                            |
+| `learning/.local/workspace.json`                                                         | Personal sessions, transcript, attempts, notes, and progress; ignored by Git |
+| `backend/data/self-education.db`                                                         | Separate SQLite foundation; ignored by Git                                   |
 
-These are product intentions, not implemented features:
+Markdown sources are committed. Personal learning records are written atomically to a local JSON file and are never seeded with demo progress. To transfer or back up personal work, stop the backend and copy `learning/.local/` separately; cloning the repository does not transfer it. Also back up the SQLite directory if you use it. Codex maintains its own authentication and thread storage outside this repository; the app saves a local transcript so a missing thread can be recreated with recent context.
 
-- **Course context:** keep the documentation, references, learning objectives, and relevant source/version information for each subject.
-- **A complete roadmap:** understand the overall path, prerequisites, the current step, completed work, and what comes next.
-- **A durable learning record:** save each learning step, notes, questions, explanations, decisions, and progress over time.
-- **Practice alongside learning:** preserve exercises, attempts, solutions, and feedback so practice remains connected to its lesson.
-- **An agent with continuity:** use the course materials and saved history to guide the next step and update the learning workspace as work progresses.
-- **A Persian workspace:** provide Persian user-facing content, right-to-left layouts, and readable left-to-right presentation for code and technical identifiers when those are introduced.
-
-How course materials are provided, how updates are triggered, and how learning data is stored will be decided in later steps. An automatic connection to ChatGPT conversation history is not assumed.
-
-## Current scope
-
-This first step provides documentation and a working application foundation:
-
-| Area                | Foundation                                                                                                            |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Frontend            | Nuxt 4, Vue 3 Composition API, TypeScript, Pinia                                                                      |
-| Language and layout | Persian starter page, `lang="fa"`, `dir="rtl"`, responsive CSS using logical properties                               |
-| Backend             | NestJS 12, TypeScript, Express adapter, ESM                                                                           |
-| Integration         | `GET /api/health`, configurable API URL and frontend CORS origin                                                      |
-| Tooling             | npm workspaces, one lockfile, development scripts, linting, formatting, type checks, builds, backend HTTP smoke tests |
-| Agent documentation | Root coordination instructions and local instructions/documentation in each app                                       |
-
-The scaffold starts with Nuxt **4.6.3**, Vue **3.5.44**, Pinia **4.1.0**, and NestJS **12.3.2**, verified against npm when setting up the repository. `package-lock.json` records the exact installed dependency tree. Nuxt stays within the requested 4.x release line.
-
-There is no course engine, database, authentication, model-provider integration, document ingestion, background agent, or learning-data persistence yet. The main-page demo's progress, notes, and connection status are temporary UI state.
-
-## Repository layout
-
-```text
-.
-├── AGENTS.md                   # Instructions for work across both applications
-├── docs/
-│   └── standards.md            # Shared standards discussion placeholder
-├── frontend/
-│   ├── AGENTS.md              # Frontend context for agents
-│   ├── README.md              # Frontend setup and commands
-│   ├── docs/standards.md       # Frontend standards discussion placeholder
-│   ├── app/
-│   │   ├── app.vue
-│   │   ├── assets/css/
-│   │   ├── pages/
-│   │   └── stores/
-│   └── nuxt.config.ts
-├── backend/
-│   ├── AGENTS.md              # Backend context for agents
-│   ├── README.md              # Backend setup and commands
-│   ├── docs/standards.md       # Backend standards discussion placeholder
-│   ├── src/
-│   │   └── health/
-│   └── test/
-├── package.json               # Shared workspace commands
-└── package-lock.json
-```
-
-The applications have separate source trees, configuration, package manifests, and build outputs. They share npm dependency management at the repository root.
+Books such as _You Don't Know JS_ have not been supplied. PDF ingestion, automatic course updates, a code runner, and background agents are future work. This app does not access your ChatGPT website history. See [learning/README.md](learning/README.md) for the Persian source guide.
 
 ## Getting started
 
-Use **Node.js 24.15 or newer in the 24.x line** and npm 10 or newer. `.nvmrc` selects Node 24; the latest patch release is recommended. The current Nuxt toolchain requires a newer runtime than early Node 20/22 installations.
-
-From the repository root:
+Use **Node.js 24.15+ in the 24.x line** and npm 10+:
 
 ```bash
 nvm install
 nvm use
 npm ci
+npm run setup
 npm run dev
 ```
 
 - Frontend: <http://localhost:3000>
 - Backend health: <http://localhost:3001/api/health>
 
-The defaults work without environment files. To customize them:
+`npm run setup` generates Prisma Client and applies committed migrations to create the local SQLite file. It is repeatable and does not reset existing data. Backend development startup runs setup automatically, so the explicit command is optional for development. No database server or Docker is required.
+
+The roadmaps and saved practice work without a model connection, while both applications must be running. For tutor replies, install the [official Codex CLI](https://developers.openai.com/codex/cli/) on the same machine, then authenticate:
+
+```bash
+npm install -g @openai/codex
+codex login
+codex login status
+```
+
+Alternatively, use **اتصال حساب ChatGPT** in the classroom and complete the official device-code login, then click the connection refresh button. The backend must be able to find `codex` on its PATH; set `CODEX_BIN` to its absolute path if necessary. The bridge was tested with Codex CLI **0.166.0**, a ChatGPT login, and a real streamed response. Account access and usage limits still apply. The default model is selected from the account's Codex model catalog; `CODEX_MODEL` can override it.
+
+The browser receives connection status and device-login instructions. Codex manages credentials; no API key or token is put in frontend configuration. This connection creates app-specific tutor threads; it does not import existing ChatGPT conversations. See the [official app-server guide](https://developers.openai.com/codex/app-server) for the underlying protocol.
+
+This is a **local, single-user workspace**. Learning endpoints accept loopback requests and the configured frontend origin. The tutor runs with read-only sandbox settings and tool execution disabled. Public hosting and multi-user authentication need a separate design.
+
+## Configuration and commands
+
+Defaults work without environment files. Optional overrides:
 
 ```bash
 cp frontend/.env.example frontend/.env
 cp backend/.env.example backend/.env
 ```
 
-Restart the affected app after changing its environment. Nuxt reads `frontend/.env` during development/build. Backend scripts load `backend/.env` using Node's built-in environment-file support.
+Restart the affected application after changes. Set `NUXT_PUBLIC_API_BASE` for the browser API address and `CORS_ORIGIN` for the matching frontend origin. Backend settings also include `DATABASE_URL`, `CODEX_BIN`, optional `CODEX_MODEL`, and optional `LEARNING_ROOT`. See the application READMEs for details.
 
-The main page now includes an interactive Persian RTL learning-dashboard demo. Courses, lesson completion, and notes use sample data held in memory; they reset on refresh. The **بررسی ارتباط با سرور** button is available under **وضعیت سرویس** in the footer. Both apps must be running for that connection check to succeed.
+Run commands from the repository root:
 
-## Commands
+| Command                                        | Purpose                                                           |
+| ---------------------------------------------- | ----------------------------------------------------------------- |
+| `npm run setup` / `npm run db:setup`           | Generate the database client and apply committed migrations       |
+| `npm run db:status`                            | Inspect migration state                                           |
+| `npm run db:migrate`                           | Apply pending committed migrations                                |
+| `npm run dev`                                  | Start both applications in watch mode                             |
+| `npm run dev:frontend` / `npm run dev:backend` | Start one application                                             |
+| `npm run typecheck`                            | Type-check both applications                                      |
+| `npm run lint`                                 | Lint both applications                                            |
+| `npm test`                                     | Run isolated backend HTTP, persistence, and Codex transport tests |
+| `npm run build`                                | Build both applications                                           |
+| `npm run format` / `npm run format:check`      | Format maintained files / check formatting                        |
+| `npm run check`                                | Run formatting, lint, types, tests, and builds                    |
 
-Run these from the repository root:
+Tests use temporary learning directories and databases. Automated tests use a fake tutor/stdio peer and do not spend model quota. Live chat and responsive browser behavior are checked separately.
 
-| Command                | Purpose                                        |
-| ---------------------- | ---------------------------------------------- |
-| `npm run dev`          | Start both applications with watch mode        |
-| `npm run dev:frontend` | Start only Nuxt                                |
-| `npm run dev:backend`  | Start only NestJS                              |
-| `npm run typecheck`    | Type-check both applications                   |
-| `npm run lint`         | Lint both applications                         |
-| `npm test`             | Run the backend HTTP smoke tests               |
-| `npm run build`        | Build both applications                        |
-| `npm run format`       | Format maintained source and documentation     |
-| `npm run format:check` | Check formatting                               |
-| `npm run check`        | Run formatting, lint, types, tests, and builds |
+## Repository and agent context
 
-See the [frontend README](frontend/README.md) and [backend README](backend/README.md) for app-specific details and production start commands.
+```text
+frontend/                 Nuxt app, Pinia learning store, Persian RTL classroom
+backend/src/learning/     Markdown catalog, file persistence, local API, Codex bridge
+backend/src/database/     SQLite/Prisma foundation
+backend/prisma/           Schema and committed SQL migrations
+learning/                 Roadmaps, supplied brief, tutor instructions
+learning/.local/          Ignored personal learning records
+AGENTS.md                 Context for development work across both apps
+frontend/AGENTS.md        Frontend agent context and UI UX Pro Max entry point
+backend/AGENTS.md         Backend agent context and data-preservation rules
+docs/standards.md         Broader standards awaiting discussion
+```
 
-## Agents and standards
+Use the root npm lockfile. App-specific setup and contracts live in [frontend/README.md](frontend/README.md) and [backend/README.md](backend/README.md).
 
-There are two distinct future responsibilities:
-
-1. **The product's learning agent:** helps the learner work through course materials, practice, and the roadmap.
-2. **Development agents working on this repository:** implement and check changes across the frontend and backend, using root instructions for coordination and each app's local context.
-
-`AGENTS.md` files establish those documentation entry points; they do not create a running agent or automatically launch separate agents. Detailed agent workflows, coding standards, review requirements, and architectural policies are deliberately left for future conversations. See [shared standards](docs/standards.md).
-
-## Future decisions
-
-The next discussions can define the first course and its source materials, the learning roadmap and saved-record format, storage, the learning-agent integration, and the standards for development and review. These are discussion topics rather than a committed implementation sequence.
-
-## Framework references
-
-- [Nuxt 4 documentation](https://nuxt.com/docs/4.x/getting-started/introduction)
-- [Pinia with Nuxt](https://pinia.vuejs.org/ssr/nuxt.html)
-- [NestJS first steps](https://docs.nestjs.com/first-steps)
+The product tutor and development agents have different roles: the tutor teaches the current topic; development agents implement and verify repository changes. `AGENTS.md` files supply context and do not automatically launch agents. Detailed orchestration, standards, and review policies remain for future conversations.
